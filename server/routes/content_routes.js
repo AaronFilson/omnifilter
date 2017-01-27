@@ -65,71 +65,38 @@ contentRouter.post('/newcontent', jwtAuth, jsonParser, (req, res) => {
     done();
   };
 
-  try {
-    const JPEGDecoder = require('jpg-stream/decoder');
-    const JPEGEncoder = require('jpg-stream/encoder');
+  const JPEGDecoder = require('jpg-stream/decoder');
+  const JPEGEncoder = require('jpg-stream/encoder');
 
-    if (req.body.content.length > 16000000) {
-      return res.status(500).json( { 'msg': 'Error: image too large' } );
-    }
-    var allPixels = [];
+  if (req.body.content.length > 16000000) {
+    return res.status(500).json( { 'msg': 'Error: image too large' } );
+  }
+  var allPixels = [];
 
-    var newContent = new Content();
-    newContent.user_id = req.user._id;
-    newContent.tOption = req.body.tOption;
+  var newContent = new Content();
+  newContent.user_id = req.user._id;
+  newContent.tOption = req.body.tOption;
 
-    if ( newContent.tOption === 'blur') {
-      var tempBuffer = new Buffer(req.body.content.slice(23), 'base64');
-      var lenOfBodyContent = req.body.content.length;
-      req.body.content = null;
-      var outArray = [];
-      var myStream = Readable();
-      var ws = Writable();
+  if ( newContent.tOption === 'blur') {
+    var tempBuffer = new Buffer(req.body.content.slice(23), 'base64');
+    req.body.content = null;
+    var outArray = [];
+    var myStream = Readable();
+    var ws = Writable();
 
-      ws._write = function(chunk, enc, next) {
-        outArray.push(chunk);
-        next();
-      };
-
-      ws.on('finish', function() {
-        var transfer = new Buffer(lenOfBodyContent - 23);
-        var i = 0;
-        for (var k = 0; k < outArray.length; k++) {
-          for (var l = 0; l < outArray[k].length; l++) {
-            if (i < transfer.length) {
-              transfer.writeUInt8(outArray[k][l], i++);
-            }
-          }
-        }
-        outArray = null;
-
-        newContent.content = 'data:image/jpeg;base64,';
-        newContent.content += transfer.toString('base64');
-        transfer = null;
-        newContent.save((err, data) => {
-
-          if (err) return handleDBError(err, res);
-
-          res.status(200).json(data);
-        });
-        newContent = null;
-      });
-
-      try {
-        myStream.push(tempBuffer);
-        myStream.push(null);
-        tempBuffer = null;
-        myStream.pipe(new JPEGDecoder())
-        .pipe(new MyPixelStream())
-        .pipe(new JPEGEncoder())
-        .pipe(ws);
-        myStream = null;
-      } catch (e) {
-        console.log('Error in processing image: ', e);
+    ws._write = function(chunk, enc, next) {
+      for (var i = 0; i < chunk.length; i++) {
+        outArray.push(chunk[i]);
       }
+      next();
+    };
 
-    } else {
-      newContent.content = req.body.content;
+    ws.on('finish', function() {
+      var transfer = new Buffer(outArray);
+      outArray = null;
+      newContent.content = 'data:image/jpeg;base64,';
+      newContent.content += transfer.toString('base64');
+      transfer = null;
       newContent.save((err, data) => {
 
         if (err) return handleDBError(err, res);
@@ -137,11 +104,30 @@ contentRouter.post('/newcontent', jwtAuth, jsonParser, (req, res) => {
         res.status(200).json(data);
       });
       newContent = null;
-    }
-  } catch (bigError) {
-    console.log('Big error in content route: ', bigError);
-  }
+    });
 
+    try {
+      myStream.push(tempBuffer);
+      myStream.push(null);
+      tempBuffer = null;
+      myStream.pipe(new JPEGDecoder())
+      .pipe(new MyPixelStream())
+      .pipe(new JPEGEncoder())
+      .pipe(ws);
+      myStream = null;
+    } catch (e) {
+      console.log('Error in processing image: ', e);
+    }
+
+  } else {
+    newContent.content = req.body.content;
+    newContent.save((err, data) => {
+
+      if (err) return handleDBError(err, res);
+      res.status(200).json(data);
+    });
+    newContent = null;
+  }
 });
 
 contentRouter.post('/save', jwtAuth, jsonParser, (req, res) => {
