@@ -1,5 +1,5 @@
 <section data-ng-init="getAll()">
-  <h1>Welcome to Omnifilter:</h1>
+  <h1>Welcome to Omnifilter</h1>
   <section data-ng-if="errors.length" class="errors-section">
     <h2>Errors: </h2>
     <ul>
@@ -48,10 +48,7 @@
     <ul>
       <li data-ng-repeat="photo in photos" class="single-photo">
         <p ng-if="photo">
-          <img src={{photo.content}} width=200 />
-          <p>
-            Created at : {{photo.createdAt}}
-          </p>
+          <img src={{photo.content}} width=200>
           <button data-ng-click="deletePhoto(photo)">Delete Photo</button>
         </p>
       </li>
