@@ -63,9 +63,52 @@ gulp.task('webpack:test', () => {
     .pipe(gulp.dest(__dirname + '/app/test/bndl/'));
 });
 
+
+gulp.task('html:deploy', () => {
+  gulp.src(__dirname + '/awsapp/**/*.html')
+    .pipe(gulp.dest(__dirname + '/deploy'));
+});
+
+gulp.task('css:deploy', () => {
+  gulp.src(__dirname + '/awsapp/**/*.css')
+    .pipe(gulp.dest(__dirname + '/deploy'));
+});
+
+gulp.task('sass:deploy', () => {
+  gulp.src(__dirname + '/awsapp/**/*.scss')
+    .pipe(maps.init())
+    .pipe(sass().on('error', sass.logError))
+    .pipe(minifyCss())
+    .pipe(maps.write('./'))
+    .pipe(gulp.dest(__dirname + '/deploy'));
+});
+
+gulp.task('images:deploy', () => {
+  gulp.src(__dirname + '/awsapp/images/**/*')
+    .pipe(gulp.dest(__dirname + '/deploy/images'));
+});
+
+gulp.task('favicon:deploy', () => {
+  gulp.src(__dirname + '/favicon.ico')
+    .pipe(gulp.dest(__dirname + '/deploy/'));
+});
+
+gulp.task('webpack:deploy', () => {
+  gulp.src('./awsapp/js/client.js')
+    .pipe(webpack({
+      output: {
+        filename: 'bundle.js'
+      }
+    }))
+    .pipe(gulp.dest(__dirname + '/deploy'));
+});
+
 gulp.task('run:tests', () => {
   // placeholder for a new task to run a battery of tests.
 });
+
+gulp.task('deploy', ['html:deploy', 'css:deploy', 'sass:deploy', 'images:deploy',
+  'favicon:deploy', 'webpack:deploy']);
 
 gulp.task('build:dev', ['webpack:dev', 'html:dev', 'css:dev',
   'sass:dev', 'images:dev', 'favicon:dev']);
