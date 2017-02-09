@@ -46,7 +46,7 @@
   </section>
   <section data-ng-show="photos.length" data-ng-cloak>
     <ul>
-      <li data-ng-repeat="photo in photos" class="single-photo">
+      <li data-ng-repeat="photo in photos | orderBy: 'photo.createdAt' : reverse=true" class="single-photo">
         <p ng-if="photo">
           <img src={{photo.content}} width=200>
           <button data-ng-click="deletePhoto(photo)">Delete Photo</button>

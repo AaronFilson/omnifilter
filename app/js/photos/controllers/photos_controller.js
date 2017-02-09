@@ -1,7 +1,7 @@
 var angular = require('angular');
 
 module.exports = function(app) {
-  app.controller('PhotosController', ['$scope', '$http', 'cfResource',
+  app.controller('PhotosController', ['$scope', '$http', 'ocResource',
   function($scope, $http, Resource) {
     $scope.photos = [];
     $scope.newPhoto = {};

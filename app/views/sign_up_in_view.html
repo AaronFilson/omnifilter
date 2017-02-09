@@ -1,8 +1,17 @@
+<section data-ng-if="errors.length" class="errors-section">
+    <h2>Errors: </h2>
+    <ul>
+      <li data-ng-repeat="error in errors">
+         {{error}}
+         <button data-ng-click="dismissError(error)" alt="dismiss">
+           X</button></li>
+    </ul>
+</section>
 <section class="auth-text">
 <form name="authForm" data-ng-submit="submit(auth)">
-  <span data-ng-if="!signup">Have an account? Sign in here -> </span>
-  <span data-ng-if="signup">Make an account? Enter info here -> </span>
-
+  <span data-ng-if="!signup">Have an account? Sign in:</span>
+  <span data-ng-if="signup">Make an account? Enter info:</span>
+  <br>
   <label for="email">Email: </label>
   <input type="text" required name="email" data-ng-model="auth.email">
 

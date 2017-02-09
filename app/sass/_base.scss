@@ -97,3 +97,14 @@ footer {
 footer a {
    color: #1111DD;
 }
+
+button[disabled],
+html input[disabled] {
+  cursor: default;
+  color: lightgrey;
+  border-color: grey;
+}
+
+button {
+  border-radius: 3px;
+}

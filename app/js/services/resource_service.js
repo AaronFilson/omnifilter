@@ -11,7 +11,7 @@ var handleFailure = function(callback) {
 };
 
 module.exports = exports = function(app) {
-  app.factory('cfResource', ['$http', '$window', 'userAuth', function($http, $window, userAuth) {
+  app.factory('ocResource', ['$http', '$window', 'userAuth', function($http, $window, userAuth) {
     var Resource = function(resourceName) {
       this.resourceName = resourceName;
     };
