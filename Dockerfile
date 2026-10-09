@@ -13,9 +13,11 @@ RUN apt-get update \
 WORKDIR /usr/src/app
 
 # Install dependencies first so this layer is cached until they change.
-# npm ci also compiles the addon (the "install" script), so it needs the source.
+# npm ci also compiles the addon (the "install" script), so it needs the source
+# and the install script.
 COPY package.json package-lock.json binding.gyp ./
 COPY native ./native
+COPY scripts/install-native.js ./scripts/
 # ONNX Runtime's installer would also fetch a 500 MB CUDA (NVIDIA) provider.
 # The addon is compiled here rather than downloaded, since the toolchain is
 # installed anyway and the runtime stage copies it from build/Release.
