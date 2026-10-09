@@ -21,19 +21,21 @@ describe('choosing a device', () => {
     fakeDevice({ index: 0, platform: 'Apple', name: 'Intel Core i5 CPU', type: 'cpu', globalMemBytes: 16 * GB }),
     fakeDevice({ index: 1, platform: 'Apple', name: 'Intel Iris Graphics', globalMemBytes: 1.5 * GB }),
     fakeDevice({ index: 2, platform: 'Apple', name: 'AMD Radeon Pro 560X', unifiedMemory: false, globalMemBytes: 4 * GB }),
-    fakeDevice({ index: 3, platform: 'pocl', name: 'pthread-cpu', type: 'cpu', available: false })
+    fakeDevice({ index: 3, platform: 'Portable Computing Language', platformVendor: 'The pocl project',
+      name: 'cpu-haswell-AMD EPYC 7763', vendor: 'AuthenticAMD', version: 'OpenCL 3.0 PoCL 5.0+debian', type: 'cpu' }),
+    fakeDevice({ index: 4, platform: 'rusticl', name: 'llvmpipe (LLVM 17.0.6, 256 bits)', type: 'cpu', available: false })
   ];
   const indexes = (setting) => choice.candidates(devices, setting).map((d) => d.index);
 
   it('prefers a discrete GPU, then an integrated one, then the CPU', () => {
-    expect(indexes()).to.eql([2, 1, 0]);
-    expect(indexes('auto')).to.eql([2, 1, 0]);
-    expect(indexes('any')).to.eql([2, 1, 0]);
+    expect(indexes()).to.eql([2, 1, 0, 3]);
+    expect(indexes('auto')).to.eql([2, 1, 0, 3]);
+    expect(indexes('any')).to.eql([2, 1, 0, 3]);
   });
 
   it('filters by type', () => {
     expect(indexes('gpu')).to.eql([2, 1]);
-    expect(indexes('CPU')).to.eql([0]);
+    expect(indexes('CPU')).to.eql([0, 3]);
   });
 
   it('picks a device by index or by part of its name', () => {
@@ -43,9 +45,14 @@ describe('choosing a device', () => {
     expect(indexes('nvidia')).to.eql([]);
   });
 
+  it('finds pocl by its version and vendor, not just its platform name', () => {
+    expect(indexes('pocl')).to.eql([3]);
+    expect(indexes('portable computing')).to.eql([3]);
+  });
+
   it('skips devices that are unavailable or have no compiler', () => {
-    expect(indexes('pocl')).to.eql([]);
-    expect(indexes('3')).to.eql([]);
+    expect(indexes('rusticl')).to.eql([]);
+    expect(indexes('4')).to.eql([]);
   });
 });
 

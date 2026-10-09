@@ -177,6 +177,7 @@ Napi::Object DescribeDevice(Napi::Env env, cl_platform_id platform, cl_device_id
   const Limits limits = ReadLimits(device);
   Napi::Object info = Napi::Object::New(env);
   info.Set("platform", PlatformString(platform, CL_PLATFORM_NAME));
+  info.Set("platformVendor", PlatformString(platform, CL_PLATFORM_VENDOR));
   info.Set("name", DeviceString(device, CL_DEVICE_NAME));
   info.Set("vendor", DeviceString(device, CL_DEVICE_VENDOR));
   info.Set("version", DeviceString(device, CL_DEVICE_VERSION));

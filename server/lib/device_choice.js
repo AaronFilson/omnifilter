@@ -25,8 +25,10 @@ function compareDevices(a, b) {
 //   any             the same
 //   gpu, cpu        only devices of that type
 //   2               the device with that index (`npm run devices` lists them)
-//   anything else   devices whose platform or device name contains it,
-//                   ignoring case, e.g. "RTX" or "pocl"
+//   anything else   devices whose name, vendor, version or platform
+//                   contains it, ignoring case, e.g. "RTX" or "pocl" (pocl's
+//                   platform is "Portable Computing Language"; "PoCL" is in
+//                   its version and platform vendor)
 function candidates(devices, setting) {
   const usable = devices.filter((d) => d.available !== false && d.compilerAvailable !== false);
   const s = String(setting || 'auto').trim().toLowerCase();
@@ -38,7 +40,8 @@ function candidates(devices, setting) {
   } else if (/^\d+$/.test(s)) {
     picked = usable.filter((d) => d.index === Number(s));
   } else {
-    picked = usable.filter((d) => (d.platform + ' ' + d.name).toLowerCase().includes(s));
+    picked = usable.filter((d) => [d.platform, d.platformVendor, d.name, d.vendor, d.version]
+      .join(' ').toLowerCase().includes(s));
   }
   return picked.slice().sort(compareDevices);
 }

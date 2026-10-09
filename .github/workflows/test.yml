@@ -44,43 +44,43 @@ jobs:
       # Rusticl only lists drivers it's told to; llvmpipe is Mesa's CPU driver.
       RUSTICL_ENABLE: llvmpipe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install the OpenCL loader, headers and ${{ matrix.opencl }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev clinfo ${{ matrix.packages }}
           clinfo --list
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: npm run devices
       - name: Server tests
-        run: npx mocha --exit --timeout 120000 --file server/test/setup.js server/test
+        run: bash .github/run-and-annotate.sh npx mocha --exit --timeout 120000 --file server/test/setup.js server/test
 
   client:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install the OpenCL loader and headers (the addon builds on npm ci)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build
       - name: Client tests (headless Firefox)
-        run: npm run test:client
+        run: bash .github/run-and-annotate.sh npm run test:client
 
   docker:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build the image
-        run: docker build -t omnifilter .
+        run: bash .github/run-and-annotate.sh docker build --progress=plain -t omnifilter .
       - name: The image finds an OpenCL device
         run: docker run --rm omnifilter node scripts/devices.js
