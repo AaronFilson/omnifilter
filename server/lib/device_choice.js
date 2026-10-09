@@ -93,6 +93,15 @@ function fitScale(needs, device) {
   return scale;
 }
 
+// OpenCL compiler options for a device: workarounds for known driver bugs
+// (see common.cl), plus any extra options given in OMNIFILTER_CL_OPTIONS.
+function buildOptions(device, extra) {
+  const options = [];
+  if (device.platform === 'rusticl') options.push('-D OMNIFILTER_TRIG_VIA_SINPI');
+  if (extra) options.push(extra);
+  return options.join(' ');
+}
+
 // Why a filter can't run on this device at all, or null if it can.
 function unsupportedReason(needs, device) {
   if (needs.usesImages && !device.imageSupport) {
@@ -103,6 +112,7 @@ function unsupportedReason(needs, device) {
 
 module.exports = {
   candidates: candidates,
+  buildOptions: buildOptions,
   planNeeds: planNeeds,
   fitScale: fitScale,
   unsupportedReason: unsupportedReason

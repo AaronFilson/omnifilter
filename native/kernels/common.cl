@@ -9,6 +9,16 @@
 
 #define PI 3.14159265358979f
 
+// Mesa's Rusticl crashes in sin, cos and tan, at least on llvmpipe (Mesa 25,
+// LLVM 20), while sinpi and cospi work. For Rusticl devices gpu_filters.js
+// compiles with OMNIFILTER_TRIG_VIA_SINPI, which routes the three through
+// those instead; the results are as accurate for the angles used here.
+#ifdef OMNIFILTER_TRIG_VIA_SINPI
+#define sin(a) sinpi((a) * (1.0f / PI))
+#define cos(a) cospi((a) * (1.0f / PI))
+#define tan(a) (sinpi((a) * (1.0f / PI)) / cospi((a) * (1.0f / PI)))
+#endif
+
 // Declares x, y and i (the pixel index) and skips work-items outside the image.
 #define GUARD \
   const int x = get_global_id(0); \

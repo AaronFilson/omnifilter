@@ -50,6 +50,13 @@ describe('choosing a device', () => {
     expect(indexes('portable computing')).to.eql([3]);
   });
 
+  it('works around known driver bugs only where needed', () => {
+    const rusticl = fakeDevice({ platform: 'rusticl', name: 'llvmpipe' });
+    expect(choice.buildOptions(rusticl)).to.equal('-D OMNIFILTER_TRIG_VIA_SINPI');
+    expect(choice.buildOptions(devices[1])).to.equal('');
+    expect(choice.buildOptions(devices[1], '-cl-opt-disable')).to.equal('-cl-opt-disable');
+  });
+
   it('skips devices that are unavailable or have no compiler', () => {
     expect(indexes('rusticl')).to.eql([]);
     expect(indexes('4')).to.eql([]);

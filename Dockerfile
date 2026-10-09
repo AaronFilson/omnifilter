@@ -17,15 +17,21 @@ WORKDIR /usr/src/app
 COPY package.json package-lock.json binding.gyp ./
 COPY native ./native
 # ONNX Runtime's installer would also fetch a 500 MB CUDA (NVIDIA) provider.
-ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
+# The addon is compiled here rather than downloaded, since the toolchain is
+# installed anyway and the runtime stage copies it from build/Release.
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip \
+    OMNIFILTER_BUILD_FROM_SOURCE=1
 RUN npm ci
 
 COPY . .
 # Build the client, drop dev dependencies, download the neural style models
 # (about 34 MB, checksum-verified), and remove the macOS and Windows binaries
-# that ONNX Runtime ships alongside the Linux ones.
+# that ONNX Runtime ships alongside the Linux ones. Build with
+# --build-arg FETCH_MODELS=false to leave the models out; the neural styles
+# then report that they're missing and every other filter works as usual.
+ARG FETCH_MODELS=true
 RUN npm run build && npm prune --omit=dev \
-  && npm run fetch-models \
+  && if [ "$FETCH_MODELS" = "true" ]; then npm run fetch-models; else mkdir -p models; fi \
   && rm -rf node_modules/onnxruntime-node/bin/napi-v3/darwin node_modules/onnxruntime-node/bin/napi-v3/win32 \
      node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime_providers_cuda.so
 

@@ -16,7 +16,8 @@ const KERNEL_DIR = path.join(__dirname, '..', '..', 'native', 'kernels');
 
 // Which OpenCL device to use: 'auto' (the best GPU, else any device), 'gpu',
 // 'cpu', a device index, or part of a device's name. See device_choice.js,
-// and `npm run devices` for the list.
+// and `npm run devices` for the list. OMNIFILTER_CL_OPTIONS adds OpenCL
+// compiler options, e.g. -cl-opt-disable when chasing a driver bug.
 const DEVICE_SETTING = process.env.OMNIFILTER_DEVICE || 'auto';
 
 const registry = new Map();
@@ -53,7 +54,7 @@ function ensureInit() {
   const failures = [];
   for (const choice of choices) {
     try {
-      native.init(source, choice.index);
+      native.init(source, choice.index, deviceChoice.buildOptions(choice, process.env.OMNIFILTER_CL_OPTIONS));
       device = native.deviceInfo();
       device.index = choice.index;
       skipped = failures;

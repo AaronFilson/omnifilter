@@ -83,7 +83,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      # Without the neural style models: their host (GitHub's LFS storage)
+      # often answers runners with HTTP 504.
       - name: Build the image
-        run: bash .github/run-and-annotate.sh docker build --progress=plain -t omnifilter .
+        run: bash .github/run-and-annotate.sh docker build --progress=plain --build-arg FETCH_MODELS=false -t omnifilter .
       - name: The image finds an OpenCL device
         run: docker run --rm omnifilter node scripts/devices.js

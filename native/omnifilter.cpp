@@ -5,8 +5,10 @@
 // JS API (wrapped by server/lib/gpu_filters.js, which also picks the device):
 //   devices()                       -> every OpenCL device on every platform:
 //                                      [{ index, platform, name, type, limits... }]
-//   init(kernelSource, deviceIndex) build every kernel in the source for one
-//                                   device (an index from devices())
+//   init(kernelSource, deviceIndex, buildOptions?)
+//                                   build every kernel in the source for one
+//                                   device (an index from devices()), with
+//                                   optional OpenCL compiler options
 //   deviceInfo()                    -> the chosen device, as in devices()
 //   kernels()                       -> names of the compiled kernels
 //   filter(rgba, width, height, plan) -> Promise<Buffer>
@@ -255,7 +257,7 @@ class Gpu {
     return gpu;
   }
 
-  void Init(const std::string& source, size_t index) {
+  void Init(const std::string& source, size_t index, const std::string& options) {
     std::lock_guard<std::mutex> lock(mutex_);
     Release();
 
@@ -268,7 +270,7 @@ class Gpu {
     // Leave nothing half set up if any step fails (say the kernels don't
     // compile for this device), so the caller can try another device.
     try {
-      Setup(source);
+      Setup(source, options);
     } catch (...) {
       Release();
       throw;
@@ -519,7 +521,7 @@ class Gpu {
   Gpu() = default;
   ~Gpu() { Release(); }
 
-  void Setup(const std::string& source) {
+  void Setup(const std::string& source, const std::string& options) {
     limits_ = ReadLimits(device_);
     const char* bandMs = std::getenv("OMNIFILTER_BAND_MS");
     bandTargetMs_ = bandMs && std::atof(bandMs) > 0 ? std::atof(bandMs) : 100.0;
@@ -538,7 +540,7 @@ class Gpu {
     program_ = clCreateProgramWithSource(context_, 1, &src, &length, &err);
     Check(err, "clCreateProgramWithSource");
 
-    err = clBuildProgram(program_, 1, &device_, nullptr, nullptr, nullptr);
+    err = clBuildProgram(program_, 1, &device_, options.empty() ? nullptr : options.c_str(), nullptr, nullptr);
     if (err != CL_SUCCESS) {
       // The build log is the only way to see kernel compile errors.
       size_t logSize = 0;
@@ -832,9 +834,10 @@ Napi::Value Init(const Napi::CallbackInfo& info) {
   if (!info[1].IsNumber() || info[1].As<Napi::Number>().Int64Value() < 0) {
     throw Napi::TypeError::New(env, "init(kernelSource, deviceIndex): deviceIndex must be an index from devices()");
   }
+  const std::string options = info[2].IsString() ? info[2].As<Napi::String>().Utf8Value() : "";
   try {
     Gpu::Instance().Init(info[0].As<Napi::String>().Utf8Value(),
-                         static_cast<size_t>(info[1].As<Napi::Number>().Int64Value()));
+                         static_cast<size_t>(info[1].As<Napi::Number>().Int64Value()), options);
   } catch (const std::exception& e) {
     throw Napi::Error::New(env, e.what());
   }
