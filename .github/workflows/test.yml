@@ -56,7 +56,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run devices
+      - name: Check every filter on the device
+        run: bash .github/run-and-annotate.sh npm run check-device
       - name: Server tests
+        if: ${{ !cancelled() }}
         run: bash .github/run-and-annotate.sh npx mocha --exit --timeout 120000 --file server/test/setup.js server/test
 
   client:

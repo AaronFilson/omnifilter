@@ -52,7 +52,8 @@
     "test:client": "gulp webpack:test && karma start",
     "start": "mkdir -p db && (mongod --dbpath=./db > db/mongod.log 2>&1 &) && node clientserver & node server/server",
     "fetch-models": "node scripts/fetch-models.js",
-    "devices": "node scripts/devices.js"
+    "devices": "node scripts/devices.js",
+    "check-device": "node scripts/check-device.js"
   },
   "keywords": [
     "image-filter",
