@@ -1,0 +1,86 @@
+# Runs the tests on every push and pull request.
+#
+# The runners have no usable GPU, so the server tests run the OpenCL kernels on
+# two independent CPU implementations: pocl, and Mesa's Rusticl on llvmpipe.
+# Two different OpenCL compilers catch most kernel code that only works on one
+# driver. See docs/GPU_SUPPORT.md.
+name: test
+
+on:
+  push:
+  pull_request:
+
+env:
+  # ONNX Runtime's installer would otherwise fetch a 500 MB CUDA provider.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
+jobs:
+  server:
+    name: server (${{ matrix.opencl }}, Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - opencl: pocl
+            packages: pocl-opencl-icd
+            device: pocl
+            node: 20
+          - opencl: pocl
+            packages: pocl-opencl-icd
+            device: pocl
+            node: 24
+          - opencl: rusticl
+            packages: mesa-opencl-icd
+            device: rusticl
+            node: 24
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      OMNIFILTER_DEVICE: ${{ matrix.device }}
+      # Rusticl only lists drivers it's told to; llvmpipe is Mesa's CPU driver.
+      RUSTICL_ENABLE: llvmpipe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the OpenCL loader, headers and ${{ matrix.opencl }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev clinfo ${{ matrix.packages }}
+          clinfo --list
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run devices
+      - name: Server tests
+        run: npx mocha --exit --timeout 120000 --file server/test/setup.js server/test
+
+  client:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the OpenCL loader and headers (the addon builds on npm ci)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Client tests (headless Firefox)
+        run: npm run test:client
+
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t omnifilter .
+      - name: The image finds an OpenCL device
+        run: docker run --rm omnifilter node scripts/devices.js

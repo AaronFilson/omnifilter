@@ -1,5 +1,5 @@
-process.env.MONGOLAB_URI = 'mongodb://localhost/user_routes_test';
 require(__dirname + '/../server');
+const { clearCollections } = require(__dirname + '/setup');
 const chai = require('chai');
 const chaiHttp = require('chai-http');
 chai.use(chaiHttp);
@@ -18,17 +18,14 @@ describe('user API', () => {
     testUser = new User();
     testUser.email = 'test3@tester.com';
     testUser.hashPassword('password');
-    testUser.save( (err, data) => {
-      if (err) throw err;
+    testUser.save().then((data) => {
       testUser.token = userToken = data.generateToken();
       done();
-    });
+    }, done);
   });
 
   after((done) => {
-    mongoose.connection.db.dropDatabase(() => {
-      done();
-    });
+    clearCollections().then(() => done(), done);
   });
 
   describe('check if user exists', () => {
@@ -50,7 +47,7 @@ describe('user API', () => {
       request(baseUri)
         .put('/usersettings/' + testUser._id)
         .set('token', userToken)
-        .send({ email: 'new email' })
+        .send({ email: 'new@tester.com', currentPassword: 'password' })
         .end(function(err, res) {
           expect(err).to.eql(null);
           expect(res.body.msg).to.eql('User updated');

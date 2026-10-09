@@ -1,0 +1,10 @@
+.git
+node_modules
+build
+dist
+db
+models
+app/test/bndl
+npm-debug.log
+.DS_Store
+.env

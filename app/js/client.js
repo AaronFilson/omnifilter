@@ -7,7 +7,10 @@ require('./services')(omnifilterApp);
 require('./auth')(omnifilterApp);
 require('./photos')(omnifilterApp);
 
-omnifilterApp.config(['$routeProvider', function(routes) {
+omnifilterApp.config(['$routeProvider', '$locationProvider', function(routes, $locationProvider) {
+  // Angular 1.6+ defaults to '#!/' URLs; keep the '#/' links used in the views.
+  $locationProvider.hashPrefix('');
+
   routes
     .when('/home', {
       controller: 'PhotosController',

@@ -14,7 +14,7 @@ module.exports = function(app) {
         }
         auth.signIn(user, function(err) {
           if (err) {
-            $scope.errors.push(err.data.msg);
+            $scope.errors.push((err.data && err.data.msg) || 'Could not sign in.');
             return console.log('Error in signing in user : ', err);
           }
           $scope.updateEmail();

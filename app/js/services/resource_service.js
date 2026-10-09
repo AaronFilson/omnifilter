@@ -27,6 +27,22 @@ module.exports = exports = function(app) {
         .then(handleSuccess(callback), handleFailure(callback));
     };
 
+    Resource.prototype.getFilters = function(callback) {
+      $http({
+        method: 'GET',
+        url: 'http://localhost:3000/filters'
+      })
+        .then(handleSuccess(callback), handleFailure(callback));
+    };
+
+    Resource.prototype.getPresets = function(callback) {
+      $http({
+        method: 'GET',
+        url: 'http://localhost:3000/presets'
+      })
+        .then(handleSuccess(callback), handleFailure(callback));
+    };
+
     Resource.prototype.create = function(data, callback) {
       $http({
         method: 'POST',
@@ -39,11 +55,12 @@ module.exports = exports = function(app) {
         .then(handleSuccess(callback), handleFailure(callback));
     };
 
+    // Only the editable fields; the server ignores everything else.
     Resource.prototype.update = function(data, callback) {
       $http({
         method: 'PUT',
-        url: 'http://localhost:3000' + this.resourceName + '/' + data._id,
-        data: data,
+        url: 'http://localhost:3000' + this.resourceName + 'preview/' + data._id,
+        data: { title: data.title, createdOn: data.createdOn, location: data.location, tags: data.tags },
         headers: {
           token: userAuth.getToken()
         }

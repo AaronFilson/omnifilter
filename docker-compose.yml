@@ -1,0 +1,38 @@
+# docker compose up --build
+# then open http://localhost:5000
+#
+# The browser talks to both the client server (:5000) and the API (:3000)
+# directly, so both ports are published on localhost.
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build: .
+    image: omnifilter
+    command: ["node", "server/server.js"]
+    environment:
+      MONGOLAB_URI: mongodb://mongo/omnifilter_app_dev
+      # The key that signs login tokens. Without one the API makes a random key
+      # at startup, so logins end when it restarts. To keep them, run
+      #   APP_SECRET=$(openssl rand -hex 32) docker compose up
+      # or put APP_SECRET=... in a .env file next to this one.
+      APP_SECRET: ${APP_SECRET:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+
+  client:
+    build: .
+    image: omnifilter
+    command: ["node", "clientserver.js"]
+    ports:
+      - "5000:5000"
+    depends_on:
+      - api
+
+volumes:
+  mongo-data:

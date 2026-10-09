@@ -15,7 +15,9 @@ module.exports = function(app) {
         }
         auth.createUser(user, function(err) {
           if (err) {
-            $scope.errors.push(err);
+            // Only the server's message: the response object also holds the
+            // request, password included.
+            $scope.errors.push((err.data && err.data.msg) || 'Could not sign up.');
             return console.dir('Error in signing up user : ', err);
           }
           $scope.updateEmail();

@@ -1,14 +1,60 @@
-FROM node:argon
+# Docker containers can't reach the GPU on macOS or Windows (and on Linux only
+# with vendor tooling), so this image ships pocl, a portable OpenCL driver that
+# runs the same kernels on the container's CPU. See docker-compose.yml.
 
-# Create app directory
-RUN mkdir -p /usr/src/app
+# ---- build: compile the native OpenCL addon and the Angular client ----
+FROM node:24-trixie-slim AS build
+
+# Compiler toolchain for node-gyp, plus the OpenCL headers and ICD loader.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ ocl-icd-opencl-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
-# Install app dependencies
-COPY package.json /usr/src/app/
-RUN npm install
+# Install dependencies first so this layer is cached until they change.
+# npm ci also compiles the addon (the "install" script), so it needs the source.
+COPY package.json package-lock.json binding.gyp ./
+COPY native ./native
+# ONNX Runtime's installer would also fetch a 500 MB CUDA (NVIDIA) provider.
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
+RUN npm ci
 
-# Bundle app source
-COPY ./usr/src/app
-EXPOSE 5000
-CMD ["node", "server.js"]
+COPY . .
+# Build the client, drop dev dependencies, download the neural style models
+# (about 34 MB, checksum-verified), and remove the macOS and Windows binaries
+# that ONNX Runtime ships alongside the Linux ones.
+RUN npm run build && npm prune --omit=dev \
+  && npm run fetch-models \
+  && rm -rf node_modules/onnxruntime-node/bin/napi-v3/darwin node_modules/onnxruntime-node/bin/napi-v3/win32 \
+     node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime_providers_cuda.so
+
+# ---- runtime ----
+FROM node:24-trixie-slim
+
+# The OpenCL ICD loader, and pocl as the OpenCL driver.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ocl-icd-libopencl1 pocl-opencl-icd \
+  && rm -rf /var/lib/apt/lists/*
+
+# pocl exposes a CPU device, so accept any OpenCL device rather than only GPUs.
+ENV NODE_ENV=production \
+    OMNIFILTER_DEVICE=any
+
+WORKDIR /usr/src/app
+COPY --from=build /usr/src/app/package.json ./
+COPY --from=build /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/build/Release/omnifilter.node ./build/Release/
+COPY --from=build /usr/src/app/native/kernels ./native/kernels
+COPY --from=build /usr/src/app/models ./models
+COPY --from=build /usr/src/app/dist ./dist
+COPY --from=build /usr/src/app/server ./server
+COPY --from=build /usr/src/app/clientserver.js ./
+# `docker run --rm omnifilter node scripts/devices.js` lists the OpenCL devices.
+COPY --from=build /usr/src/app/scripts/devices.js ./scripts/
+
+USER node
+EXPOSE 3000 5000
+
+# The API server; docker-compose.yml runs the client server from the same image.
+CMD ["node", "server/server.js"]

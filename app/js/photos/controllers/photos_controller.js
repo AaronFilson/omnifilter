@@ -7,7 +7,117 @@ module.exports = function(app) {
     $scope.newPhoto = {};
     $scope.errors = [];
     $scope.serverMessages = [];
+    $scope.filters = [];
+    $scope.presets = [];
+    $scope.maxLayers = 8;
+    // Filters are applied top to bottom, each laid over the result of the
+    // ones above with its strength and blend mode. tOption is null (not '')
+    // so a layer's select shows its "None" option.
+    $scope.layers = [newLayer()];
+    // On an object so the preset select (inside an ng-if) can set it.
+    $scope.selection = { preset: null };
     var photoService = Resource('/');
+
+    function newLayer() {
+      return { tOption: null, params: {}, amount: 100, blend: 'normal' };
+    }
+
+    function findFilter(name) {
+      return $scope.filters.find(function(f) {
+        return f.name === name;
+      });
+    }
+
+    $scope.getFilters = function() {
+      photoService.getFilters(function(err, res) {
+        if (err) return $scope.errors.push('Could not load the list of filters.');
+        // Hide filters the server's GPU can't run.
+        $scope.filters = res.filter(function(f) {
+          return f.available !== false;
+        });
+      });
+      photoService.getPresets(function(err, res) {
+        if (err) return $scope.errors.push('Could not load the preset looks.');
+        $scope.presets = res.presets;
+        $scope.maxLayers = res.maxLayers;
+        $scope.blendModes = res.layerParams.find(function(p) {
+          return p.name === 'blend';
+        }).options;
+      });
+    };
+
+    $scope.layerFilter = function(layer) {
+      return findFilter(layer.tOption);
+    };
+
+    $scope.filterLabel = function(name) {
+      var filter = findFilter(name);
+      return filter ? filter.label : (name || 'Original');
+    };
+
+    // What a saved photo had applied, e.g. "Sepia + Vignette".
+    $scope.photoLabel = function(photo) {
+      if (photo.tStack && photo.tStack.length) {
+        return photo.tStack.map(function(layer) {
+          return $scope.filterLabel(layer.tOption);
+        }).join(' + ');
+      }
+      return $scope.filterLabel(photo.tOption);
+    };
+
+    // Each filter starts from its default settings, plus any given.
+    function resetParams(layer, given) {
+      var filter = findFilter(layer.tOption);
+      layer.params = {};
+      if (filter) {
+        filter.params.forEach(function(p) {
+          layer.params[p.name] = given && given[p.name] !== undefined ? given[p.name] : p.default;
+        });
+      }
+    }
+
+    $scope.layerFilterChanged = function(layer) {
+      resetParams(layer);
+      $scope.selection.preset = null;
+    };
+
+    $scope.addLayer = function() {
+      if ($scope.layers.length < $scope.maxLayers) $scope.layers.push(newLayer());
+    };
+
+    $scope.removeLayer = function(index) {
+      $scope.layers.splice(index, 1);
+      if (!$scope.layers.length) $scope.layers.push(newLayer());
+    };
+
+    $scope.moveLayer = function(index, by) {
+      var to = index + by;
+      if (to < 0 || to >= $scope.layers.length) return;
+      var layer = $scope.layers.splice(index, 1)[0];
+      $scope.layers.splice(to, 0, layer);
+    };
+
+    // Replaces the layers with a preset's, which can then be adjusted.
+    $scope.applyPreset = function() {
+      var preset = $scope.presets.find(function(p) {
+        return p.name === $scope.selection.preset;
+      });
+      if (!preset) return;
+      $scope.layers = preset.stack.map(function(item) {
+        var layer = newLayer();
+        layer.tOption = item.tOption;
+        layer.amount = item.amount === undefined ? 100 : item.amount;
+        layer.blend = item.blend || 'normal';
+        resetParams(layer, item.params);
+        return layer;
+      });
+    };
+
+    $scope.selectedPreset = function() {
+      return $scope.presets.find(function(p) {
+        return p.name === $scope.selection.preset;
+      });
+    };
 
     $scope.dismissError = function(err) {
       $scope.errors.splice($scope.errors.indexOf(err), 1);
@@ -30,8 +140,9 @@ module.exports = function(app) {
     $scope.getAll = function() {
       photoService.getAll((err, res) => {
         if (err) {
-          $scope.errors.push(err);
-          return console.log('err in getAll : ' + err);
+          $scope.errors.push('Could not load your photos' +
+            (err.data && err.data.msg ? ': ' + err.data.msg : '.'));
+          return console.log('err in getAll : ' + err.status);
         }
         $scope.photos = res;
       });
@@ -89,20 +200,36 @@ module.exports = function(app) {
     };
 
     $scope.transformPhoto = function() {
-      $scope.tOption = $scope.tOption || '';
-      if (!document.getElementById('preview').src) {
+      // img.src resolves '' to the page URL, so check the raw attribute.
+      var previewSrc = document.getElementById('preview').getAttribute('src') || '';
+      if (previewSrc.indexOf('data:') !== 0) {
         console.log('Image src for preview was not valid');
         return $scope.errors.push('The image source was not valid. Please select via preview.');
       }
-      var sendObj = {
-        content: document.getElementById('preview').src,
-        tOption: $scope.tOption
-      };
+      var layers = $scope.layers.filter(function(layer) {
+        return layer.tOption;
+      });
+      var sendObj = { content: previewSrc };
+      if (!layers.length) {
+        $scope.serverMessages.push({ msg: 'No transformation selected, saving the original image.' });
+        sendObj.tOption = '';
+      } else if (layers.length === 1 && layers[0].amount >= 100 && layers[0].blend === 'normal') {
+        // A single filter at full strength is sent the simple way.
+        sendObj.tOption = layers[0].tOption;
+        sendObj.params = layers[0].params;
+      } else {
+        sendObj.stack = layers.map(function(layer) {
+          return { tOption: layer.tOption, params: layer.params, amount: layer.amount, blend: layer.blend };
+        });
+      }
 
+      $scope.transforming = true;
       photoService.create(sendObj, function(err, res) {
+        $scope.transforming = false;
         if (err) {
-          $scope.errors.push('Could not create photo on server.');
-          return console.log('Error in transformPhoto create.' + err);
+          $scope.errors.push('Could not create photo on server' +
+            (err.data && err.data.msg ? ': ' + err.data.msg : '.'));
+          return console.log('Error in transformPhoto create.', err);
         }
         $scope.photos.push(res);
       });

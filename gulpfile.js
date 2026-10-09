@@ -1,58 +1,64 @@
 const gulp = require('gulp');
 const webpack = require('webpack-stream');
-require('babel-loader');
-require('html-loader');
-const sass = require('gulp-sass');
+const sass = require('gulp-sass')(require('sass'));
 const maps = require('gulp-sourcemaps');
-const minifyCss = require('gulp-minify-css');
+const cleanCss = require('gulp-clean-css');
+
+// gulp 5 reads files as utf8 text by default, which corrupts binary files.
+const binary = { encoding: false };
 
 gulp.task('html:dev', () => {
-  gulp.src(__dirname + '/app/**/*.html')
-    .pipe(gulp.dest(__dirname + '/build'));
+  return gulp.src(__dirname + '/app/**/*.html')
+    .pipe(gulp.dest(__dirname + '/dist'));
 });
 
 gulp.task('css:dev', () => {
-  gulp.src(__dirname + '/app/**/*.css')
-    .pipe(gulp.dest(__dirname + '/build'));
+  return gulp.src(__dirname + '/app/**/*.css')
+    .pipe(gulp.dest(__dirname + '/dist'));
 });
 
 gulp.task('sass:dev', () => {
-  gulp.src(__dirname + '/app/**/*.scss')
+  return gulp.src(__dirname + '/app/**/*.scss')
     .pipe(maps.init())
     .pipe(sass().on('error', sass.logError))
-    .pipe(minifyCss())
+    .pipe(cleanCss())
     .pipe(maps.write('./'))
-    .pipe(gulp.dest(__dirname + '/build'));
+    .pipe(gulp.dest(__dirname + '/dist'));
 });
 
 gulp.task('images:dev', () => {
-  gulp.src(__dirname + '/app/images/**/*')
-    .pipe(gulp.dest(__dirname + '/build/images'));
+  return gulp.src(__dirname + '/app/images/**/*', binary)
+    .pipe(gulp.dest(__dirname + '/dist/images'));
 });
 
 gulp.task('favicon:dev', () => {
-  gulp.src(__dirname + '/favicon.ico')
-    .pipe(gulp.dest(__dirname + '/build/'));
+  return gulp.src(__dirname + '/favicon.ico', binary)
+    .pipe(gulp.dest(__dirname + '/dist/'));
 });
 
 gulp.task('webpack:dev', () => {
-  gulp.src('./app/js/client.js')
+  return gulp.src('./app/js/client.js')
     .pipe(webpack({
+      mode: 'development',
+      devtool: 'source-map',
       output: {
         filename: 'bundle.js'
       }
     }))
-    .pipe(gulp.dest(__dirname + '/build'));
+    .pipe(gulp.dest(__dirname + '/dist'));
 });
 
 gulp.task('webpack:test', () => {
-  gulp.src(__dirname + '/app/test/test_entry.js')
+  return gulp.src(__dirname + '/app/test/test_entry.js')
     .pipe(webpack({
+      mode: 'development',
       module: {
-        loaders: [
+        rules: [
           {
             test: /\.html$/,
-            loader: 'html'
+            loader: 'html-loader',
+            // Plain strings for $templateCache; leave {{bindings}} in src alone.
+            options: { esModule: false, sources: false }
           }
         ]
       },
@@ -63,10 +69,6 @@ gulp.task('webpack:test', () => {
     .pipe(gulp.dest(__dirname + '/app/test/bndl/'));
 });
 
-gulp.task('run:tests', () => {
-  // placeholder for a new task to run a battery of tests.
-});
-
-gulp.task('build:dev', ['webpack:dev', 'html:dev', 'css:dev',
-  'sass:dev', 'images:dev', 'favicon:dev']);
-gulp.task('default', ['build:dev', 'webpack:test']);
+gulp.task('build:dev', gulp.parallel('webpack:dev', 'html:dev', 'css:dev',
+  'sass:dev', 'images:dev', 'favicon:dev'));
+gulp.task('default', gulp.series('build:dev'));

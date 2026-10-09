@@ -1,5 +1,8 @@
 db/**
 build/**/**
+dist/**
+models/**
+.env
 node_modules
 node_modules/**
 **/node_modules

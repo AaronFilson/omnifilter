@@ -1,5 +1,5 @@
-process.env.MONGOLAB_URI = 'mongodb://localhost/content_route_test';
 require(__dirname + '/../server.js');
+const { clearCollections } = require(__dirname + '/setup');
 const User = require(__dirname + '/../models/user');
 const Content = require(__dirname + '/../models/content');
 var PORT = process.env.PORT || process.env.$PORT || 3000;
@@ -20,18 +20,15 @@ describe('content API', () => {
     var newUser = new User();
     newUser.email = 'test2@tester.com';
     newUser.hashPassword('password2');
-    newUser.save((err, data) => {
-      if (err) return console.log('Error in the before section of the test with : ' + err);
+    newUser.save().then((data) => {
       userToken = data.generateToken();
       userId = data._id;
       done();
-    });
+    }, done);
   });
 
   after((done) => {
-    mongoose.connection.db.dropDatabase(() => {
-      done();
-    });
+    clearCollections().then(() => done(), done);
   });
 
   it('should be able to GET all content', (done) => {
@@ -49,11 +46,11 @@ describe('content API', () => {
     chai.request(baseUri)
       .post('/newcontent')
       .set( { token: userToken } )
-      .send({ content: 'content' } )
+      .send({ content: 'data:image/png;base64,AAAA' } )
       .end(function(err, res) {
         expect(err).to.eql(null);
         expect(res).to.have.status(200);
-        expect(res.body.content).to.eql('content');
+        expect(res.body.content).to.eql('data:image/png;base64,AAAA');
         expect(res.body).to.have.property('_id');
         done();
       });
@@ -61,23 +58,25 @@ describe('content API', () => {
 
   describe('rest requests that require content already in db', () => {
     beforeEach((done) => {
-      Content.create( { content: 'test content', user_id: userId }, (err, data) => {
-        if (err) return new Error('Error', err);
+      Content.create( { content: 'test content', user_id: userId }).then((data) => {
         this.testContent = data;
         done();
-      });
+      }, done);
     });
 
     it('should be able to update content', (done) => {
       chai.request(baseUri)
         .put('/preview/' + this.testContent._id)
         .set( { token: userToken } )
-        .send( { name: 'new content name' } )
+        .send( { title: 'new content name' } )
         .end((err, res) => {
           expect(err).to.eql(null);
           expect(res).to.have.status(200);
           expect(res.body.msg).to.eql('Successfully updated content');
-          done();
+          Content.findById(this.testContent._id).then((saved) => {
+            expect(saved.title).to.eql('new content name');
+            done();
+          }, done);
         });
     });
 
@@ -100,7 +99,6 @@ describe('content API', () => {
         .set( { token: null } )
         .send( { name: 'new content name' } )
         .end((err, res) => {
-          expect(err).to.not.eql(null);
           expect(res).to.have.status(401);
           expect(res.body.msg).to.eql('could not authenticate user');
           done();
@@ -113,7 +111,6 @@ describe('content API', () => {
         .set( { token: userToken } )
         .send( { name: 'new content name' } )
         .end((err, res) => {
-          expect(err).to.not.eql(null);
           expect(res).to.have.status(404);
           done();
         });
