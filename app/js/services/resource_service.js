@@ -35,6 +35,14 @@ module.exports = exports = function(app) {
         .then(handleSuccess(callback), handleFailure(callback));
     };
 
+    Resource.prototype.getDevice = function(callback) {
+      $http({
+        method: 'GET',
+        url: 'http://localhost:3000/device'
+      })
+        .then(handleSuccess(callback), handleFailure(callback));
+    };
+
     Resource.prototype.getPresets = function(callback) {
       $http({
         method: 'GET',

@@ -20,14 +20,20 @@ Our application is still under development, thank you for your patience.
 ### Requirements
 * Node.js 18 or newer
 * MongoDB (`brew install mongodb-community`, or any MongoDB 4.2+ server)
-* A C++ compiler for the native addon (on macOS: `xcode-select --install`)
-* OpenCL:
+* An OpenCL runtime:
   * **macOS:** built in, nothing to install. (Apple has deprecated OpenCL in favour of Metal, but it still works on current macOS, Intel and Apple Silicon.)
-  * **Linux:** the OpenCL headers and ICD loader (`apt install ocl-icd-opencl-dev opencl-headers`), plus a driver for your device: your GPU vendor's, or `pocl-opencl-icd` to run on the CPU.
+  * **Linux:** the ICD loader (`apt install ocl-icd-libopencl1`), plus a driver for your device: your GPU vendor's, Mesa's Rusticl (`mesa-opencl-icd`), or `pocl-opencl-icd` to run on the CPU.
+  * **Windows:** comes with the NVIDIA, AMD and Intel GPU drivers.
+
+`npm install` installs the native GPU addon. When the [prebuilds workflow](.github/workflows/prebuilds.yml) has published a binary for your platform built from the same source (Linux, macOS and Windows, x64 and arm64), it downloads that, checks its SHA-256 and that it loads. Otherwise it compiles the addon, which needs:
+* A C++ compiler: on macOS `xcode-select --install`; on Linux `build-essential`; on Windows the "Desktop development with C++" workload of Visual Studio or its Build Tools.
+* The OpenCL headers and loader library: built into macOS; on Linux `apt install ocl-icd-opencl-dev`; on Windows, set `OPENCL_SDK` to a folder with `include/CL/cl.h` and `lib/OpenCL.lib`, such as the unzipped [Khronos OpenCL-SDK](https://github.com/KhronosGroup/OpenCL-SDK/releases) for x64, or vcpkg's `installed\<triplet>` folder after `vcpkg install opencl:x64-windows` (or `arm64-windows`).
+
+Set `OMNIFILTER_BUILD_FROM_SOURCE=1` to always compile.
 
 ### Running locally
 ```
-npm install      # also compiles the native GPU addon (node-gyp)
+npm install      # also installs the native GPU addon (downloaded or compiled)
 npm run build    # builds the Angular client into dist/
 npm start        # starts MongoDB (data in ./db), the client on :5000 and the API on :3000
 ```
@@ -35,7 +41,9 @@ Optionally, `npm run fetch-models` downloads the neural style transfer models (a
 Then open http://localhost:5000. On startup the API server logs which device the filters will run on, e.g.
 `Filters will run on GPU: Intel(R) Iris(TM) Graphics 6100 (OpenCL 1.2, 48 compute units)`.
 
-`npm run devices` lists the OpenCL devices on the machine and which one the filters use. By default that's the best GPU (a discrete one before an integrated one), falling back to any other device, such as the CPU, if there's no GPU or its driver can't compile the kernels. Set `OMNIFILTER_DEVICE=cpu` to run the same kernels on the CPU instead (handy for comparing speed).
+`npm run devices` lists the OpenCL devices on the machine and which one the filters use. By default that's the best GPU (a discrete one before an integrated one), falling back to any other device, such as the CPU, if there's no GPU or its driver can't compile the kernels. Set `OMNIFILTER_DEVICE=cpu` to run the same kernels on the CPU instead (handy for comparing speed). The page shows which device the filters run on.
+
+`npm run check-device` runs every filter on the chosen device and reports which work, fail or crash, carrying on after a crash; it's the first thing to try on a new GPU or driver.
 
 ### Configuration
 | Variable | What it does |

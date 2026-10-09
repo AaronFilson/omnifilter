@@ -91,7 +91,9 @@
       <br>
 
       <button id="transform" data-ng-click="transformPhoto()" data-ng-disabled="transforming">Transform</button>
-      <span data-ng-if="transforming">Transforming on the GPU...</span>
+      <span data-ng-if="transforming">Transforming on the {{device.type === 'gpu' ? 'GPU' : 'CPU'}}...</span>
+      <p class="device-info" data-ng-if="device">Filters run on {{device.name}}
+        ({{device.type === 'gpu' ? 'GPU' : device.type === 'cpu' ? 'CPU' : device.type}}, {{device.platform}})</p>
       <br>
       <button type="button" name="Cancel Preview" data-ng-click="cancelPreview()">Cancel</button>
       Click cancel button to clear the preview.

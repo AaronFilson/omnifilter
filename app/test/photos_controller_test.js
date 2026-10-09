@@ -49,9 +49,11 @@ describe('photos controller filters', () => {
     var unavailable = { name: 'swirl', label: 'Swirl', group: 'Distort', description: 'Twist.', params: [],
       available: false, unavailableReason: 'needs image (texture) support' };
     $httpBackend.expectGET('http://localhost:3000/filters').respond(200, filters.concat([unavailable]));
+    $httpBackend.expectGET('http://localhost:3000/device').respond(200, { name: 'Iris', type: 'gpu', platform: 'Apple' });
     $httpBackend.expectGET('http://localhost:3000/presets').respond(200, presets);
     $scope.getFilters();
     $httpBackend.flush();
+    expect($scope.device.name).toBe('Iris');
     expect($scope.filters.length).toBe(2);
     expect($scope.filterLabel('swirl')).toBe('swirl');
     expect($scope.presets.length).toBe(1);

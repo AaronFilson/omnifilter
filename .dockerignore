@@ -4,6 +4,7 @@ build
 dist
 db
 models
+prebuilds
 app/test/bndl
 npm-debug.log
 .DS_Store

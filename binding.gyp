@@ -30,13 +30,20 @@
           }
         }],
         ["OS=='win'", {
-          # Set OPENCL_SDK to an OpenCL SDK (e.g. the Khronos OpenCL-SDK release).
+          # Set OPENCL_SDK to a folder with include/CL/cl.h and lib/OpenCL.lib:
+          # the Khronos OpenCL-SDK release (x64), or vcpkg's
+          # installed/<triplet> folder after `vcpkg install opencl`. At run
+          # time the OpenCL.dll that GPU drivers install is used.
           "include_dirs": [ "$(OPENCL_SDK)/include" ],
+          "defines": [ "NOMINMAX" ],
           "link_settings": {
             "libraries": [ "$(OPENCL_SDK)/lib/OpenCL.lib" ]
           },
           "msvs_settings": {
-            "VCCLCompilerTool": { "ExceptionHandling": 1 }
+            "VCCLCompilerTool": {
+              "ExceptionHandling": 1,
+              "AdditionalOptions": [ "/std:c++17" ]
+            }
           }
         }]
       ]

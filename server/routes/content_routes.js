@@ -74,6 +74,21 @@ contentRouter.get('/filters', (req, res) => {
   res.status(200).json(gpuFilters.list());
 });
 
+// The OpenCL device the filters run on, for the page to show.
+contentRouter.get('/device', (req, res) => {
+  try {
+    const device = gpuFilters.deviceInfo();
+    res.status(200).json({
+      name: device.name,
+      type: device.type,
+      platform: device.platform,
+      version: device.version.trim()
+    });
+  } catch (e) {
+    res.status(503).json({ msg: 'No OpenCL device is available: ' + e.message.split('\n')[0] });
+  }
+});
+
 // Ready-made filter stacks, and the controls every layer of a stack has.
 contentRouter.get('/presets', (req, res) => {
   res.status(200).json({

@@ -77,6 +77,16 @@ describe('image codec', () => {
     });
 });
 
+describe('GET /device', () => {
+  it('names the device the filters run on', () => {
+    return chai.request(baseUri).get('/device').then((res) => {
+      expect(res).to.have.status(200);
+      expect(res.body.name).to.be.a('string').that.is.not.empty;
+      expect(['gpu', 'cpu', 'accelerator', 'other']).to.include(res.body.type);
+    });
+  });
+});
+
 describe('GET /filters', () => {
   it('lists the filters with their groups and parameters', (done) => {
     chai.request(baseUri)

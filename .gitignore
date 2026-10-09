@@ -2,6 +2,7 @@ db/**
 build/**/**
 dist/**
 models/**
+prebuilds/
 .env
 node_modules
 node_modules/**

@@ -13,6 +13,8 @@ on:
 env:
   # ONNX Runtime's installer would otherwise fetch a 500 MB CUDA provider.
   ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+  # Test the addon's source, rather than a prebuilt download of it.
+  OMNIFILTER_BUILD_FROM_SOURCE: 1
 
 jobs:
   server:
@@ -61,6 +63,52 @@ jobs:
       - name: Server tests
         if: ${{ !cancelled() }}
         run: bash .github/run-and-annotate.sh npx mocha --exit --timeout 120000 --file server/test/setup.js server/test
+
+  # Apple Silicon. The runner VM may have no OpenCL device; if it has one,
+  # every filter is checked on it.
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check every filter, if there is an OpenCL device
+        run: |
+          node -e "const n = require('./server/lib/native'); console.log(JSON.stringify(n.devices(), null, 1))"
+          if node -e "process.exit(require('./server/lib/native').devices().length ? 0 : 1)"; then
+            bash .github/run-and-annotate.sh npm run check-device
+          else
+            echo "::notice title=macOS::This runner has no OpenCL device; the addon built and loaded."
+          fi
+
+  # Builds with the OpenCL headers and loader from vcpkg. The runner has no
+  # OpenCL device, so this checks that the addon builds, installs and loads.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install the OpenCL headers and loader
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install opencl:x64-windows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $sdk = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows"
+          "OPENCL_SDK=$sdk" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "$sdk\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - run: npm ci
+      - name: The addon loads
+        run: node -e "const n = require('./server/lib/native'); console.log(n.devices().length + ' OpenCL devices')"
+      - name: The server starts without an OpenCL device
+        shell: bash
+        run: |
+          node -e "const g = require('./server/lib/gpu_filters'); console.log(g.list().length + ' filters'); try { g.deviceInfo(); } catch (e) { console.log('as expected: ' + e.message.split('\\n')[0]); }"
 
   client:
     runs-on: ubuntu-24.04

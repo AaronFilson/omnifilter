@@ -36,6 +36,9 @@ module.exports = function(app) {
           return f.available !== false;
         });
       });
+      photoService.getDevice(function(err, res) {
+        $scope.device = err ? null : res;
+      });
       photoService.getPresets(function(err, res) {
         if (err) return $scope.errors.push('Could not load the preset looks.');
         $scope.presets = res.presets;
